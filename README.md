@@ -31,11 +31,16 @@ Labels (with priority order):
 
 ---
 
-## Requirements
+### Requirements
 
 - PowerShell (run **as Administrator**)
 - `ExchangeOnlineManagement` module
 - Purview / Compliance admin permissions
 
-```powershell
-Install-Module ExchangeOnlineManagement
+
+### What it does not do is prepare the tenant
+This guy did it better
+
+https://github.com/GarthVDW/M365-Purview-DLP-Enable-Sensitivity-Labels
+
+Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell
