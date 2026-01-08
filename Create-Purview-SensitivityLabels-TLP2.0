@@ -1,0 +1,232 @@
+<# ==========================================
+  Updated 2026-01-08
+  TLP-aligned sensitivity labels (Purview)
+  Adds environment selection for Retail vs US Gov endpoints
+  Reduces static label name strings by using variables
+  Requires: ExchangeOnlineManagement module
+  Run in an elevated PowerShell session
+  Run like:
+    .\TlpLabels.ps1 -TenantPrimaryDomain "contoso.com"
+    .\TlpLabels.ps1 -TenantPrimaryDomain "contoso.com" -CloudEnvironment USGovGCCHigh
+    .\TlpLabels.ps1 -TenantPrimaryDomain "contoso.com" -CloudEnvironment USGovDoD
+  TLP 2.0 source https://www.cisa.gov/tlp
+========================================== #>
+
+param(
+  [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')]
+  [string]$TenantPrimaryDomain,
+
+  # Retail = Commercial + GCC (same endpoints)
+  # USGovGCCHigh / USGovDoD = Government endpoints
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("Retail","USGovGCCHigh","USGovDoD")]
+  [string]$CloudEnvironment = "Retail"
+)
+
+Import-Module ExchangeOnlineManagement
+
+# Connect to Security & Compliance PowerShell (IPPSSession)
+switch ($CloudEnvironment) {
+  "Retail" {
+    # Default endpoints; don't specify ConnectionUri / AzureADAuthorizationEndpointUri
+    Connect-IPPSSession -ShowBanner:$false
+  }
+
+  "USGovGCCHigh" {
+    Connect-IPPSSession `
+      -ShowBanner:$false `
+      -ConnectionUri "https://ps.compliance.protection.office365.us/powershell-liveid/" `
+      -AzureADAuthorizationEndpointUri "https://login.microsoftonline.us/organizations"
+  }
+
+  "USGovDoD" {
+    Connect-IPPSSession `
+      -ShowBanner:$false `
+      -ConnectionUri "https://l5.ps.compliance.protection.office365.us/powershell-liveid/" `
+      -AzureADAuthorizationEndpointUri "https://login.microsoftonline.us/organizations"
+  }
+}
+
+# --- Customize these (non-tenant) defaults ---
+$FontName            = "Calibri"
+$HeaderFontSize      = 12
+$HeaderAlign         = "Right"
+$OfflineDays         = 30
+
+# Optional: set label colors via hex (PowerShell uses AdvancedSettings @{Color="#RRGGBB"})
+$ColorClear     = $null          # Public: none
+$ColorGreen     = "#13A10E"      # light green
+$ColorAmber     = "#EAA300"      # marigold
+$ColorAmberStr  = "#F7630C"      # orange
+$ColorRed       = "#A4262C"      # burgundy
+
+# =========================================================
+# Label names (single source of truth)
+# =========================================================
+$LblPublic     = "Public"
+$LblGeneral    = "General"
+$LblCExternal  = "Confidential – External"
+$LblCInternal  = "Confidential – Internal"
+$LblViewOnly   = "Confidential – View Only"
+
+# Optional: header text overrides (kept separate so label names can change without breaking header text)
+$HdrCExternal  = "Confidential - External"
+$HdrCInternal  = "Confidential - Internal"
+$HdrViewOnly   = "Confidential - View Only"
+
+function New-TlpLabel {
+  param(
+    [Parameter(Mandatory=$true)][string]$Name,
+    [Parameter(Mandatory=$true)][string]$Tooltip,
+    [Parameter(Mandatory=$true)][string]$Comment,
+    [Parameter(Mandatory=$true)][int]$Priority,
+    [string]$ColorHex = $null
+  )
+
+  $adv = @{}
+  if ($ColorHex) { $adv["Color"] = $ColorHex }
+
+  # Create if missing; otherwise update metadata (idempotent)
+  $existing = Get-Label -Identity $Name -ErrorAction SilentlyContinue
+  if (-not $existing) {
+    if ($adv.Count -gt 0) {
+      New-Label -Name $Name -DisplayName $Name -Tooltip $Tooltip -Comment $Comment -AdvancedSettings $adv | Out-Null
+    } else {
+      New-Label -Name $Name -DisplayName $Name -Tooltip $Tooltip -Comment $Comment | Out-Null
+    }
+  } else {
+    if ($adv.Count -gt 0) {
+      Set-Label -Identity $Name -Tooltip $Tooltip -Comment $Comment -AdvancedSettings $adv | Out-Null
+    } else {
+      Set-Label -Identity $Name -Tooltip $Tooltip -Comment $Comment | Out-Null
+    }
+  }
+
+  # Set label ordering via Priority
+  Set-Label -Identity $Name -Priority $Priority | Out-Null
+}
+
+# =========================================================
+# 1) Create labels (names + priorities + descriptions)
+# =========================================================
+New-TlpLabel -Name $LblPublic -Priority 0 `
+  -Tooltip "TLP:CLEAR — can be shared publicly; no limit on disclosure." `
+  -Comment "TLP:CLEAR ($LblPublic)" `
+  -ColorHex $ColorClear
+
+New-TlpLabel -Name $LblGeneral -Priority 1 `
+  -Tooltip "TLP:GREEN — share within community (partners/customers), not publicly accessible channels." `
+  -Comment "TLP:GREEN ($LblGeneral)" `
+  -ColorHex $ColorGreen
+
+New-TlpLabel -Name $LblCExternal -Priority 2 `
+  -Tooltip "TLP:AMBER — sensitive; intended for specific people inside/outside the org (need-to-know)." `
+  -Comment "TLP:AMBER ($LblCExternal)" `
+  -ColorHex $ColorAmber
+
+New-TlpLabel -Name $LblCInternal -Priority 3 `
+  -Tooltip "TLP:AMBER+STRICT — limited to the recipient organization only." `
+  -Comment "TLP:AMBER+STRICT ($LblCInternal)" `
+  -ColorHex $ColorAmberStr
+
+New-TlpLabel -Name $LblViewOnly -Priority 4 `
+  -Tooltip "TLP:RED — do not share further; recipients should not copy/print/forward." `
+  -Comment "TLP:RED ($LblViewOnly)" `
+  -ColorHex $ColorRed
+
+# =========================================================
+# 2) Apply label protection + markings (per your defaults)
+#    Encryption parameters are on Set-Label/New-Label.
+# =========================================================
+
+# --- Confidential – External ---
+# NOTE: You must confirm the exact principal string in your environment.
+# If this fails, use domain-based principals (e.g., "$TenantPrimaryDomain:OWNER") or specific users/groups.
+$RightsDefinition = "VIEW,VIEWRIGHTSDATA,DOCEDIT,EDIT,PRINT,EXTRACT,REPLY,REPLYALL,FORWARD,EDITRIGHTSDATA,EXPORT,OBJMODEL,OWNER"
+$ExternalOwnerPrincipal = "AuthenticatedUsers"+":"+$RightsDefinition
+
+Set-Label -Identity $LblCExternal `
+  -EncryptionEnabled $true `
+  -EncryptionProtectionType Template `
+  -EncryptionContentExpiredOnDateInDaysOrNever "Never" `
+  -EncryptionOfflineAccessDays $OfflineDays `
+  -EncryptionRightsDefinitions $ExternalOwnerPrincipal `
+  -ApplyContentMarkingHeaderEnabled $true `
+  -ApplyContentMarkingHeaderText $HdrCExternal `
+  -ApplyContentMarkingHeaderFontName $FontName `
+  -ApplyContentMarkingHeaderFontSize $HeaderFontSize `
+  -ApplyContentMarkingHeaderAlignment $HeaderAlign | Out-Null
+
+# --- Confidential – Internal ---
+# "Co-Owner for All Organization Users" -> use tenant primary domain grant
+$InternalOwnerPrincipal = "${TenantPrimaryDomain}:"+$RightsDefinition
+
+Set-Label -Identity $LblCInternal `
+  -EncryptionEnabled $true `
+  -EncryptionProtectionType Template `
+  -EncryptionContentExpiredOnDateInDaysOrNever "Never" `
+  -EncryptionOfflineAccessDays $OfflineDays `
+  -EncryptionRightsDefinitions $InternalOwnerPrincipal `
+  -ApplyContentMarkingHeaderEnabled $true `
+  -ApplyContentMarkingHeaderText $HdrCInternal `
+  -ApplyContentMarkingHeaderFontName $FontName `
+  -ApplyContentMarkingHeaderFontSize $HeaderFontSize `
+  -ApplyContentMarkingHeaderAlignment $HeaderAlign | Out-Null
+
+# --- Confidential – View Only ---
+# "View only" example: grant VIEW only (no edit). Hardening copy/print/export depends on app behavior.
+Set-Label -Identity $LblViewOnly `
+  -EncryptionEnabled $true `
+  -EncryptionProtectionType Template `
+  -EncryptionContentExpiredOnDateInDaysOrNever "Never" `
+  -EncryptionOfflineAccessDays $OfflineDays `
+  -EncryptionRightsDefinitions "AuthenticatedUsers:VIEW" `
+  -ApplyContentMarkingHeaderEnabled $true `
+  -ApplyContentMarkingHeaderText $HdrViewOnly `
+  -ApplyContentMarkingHeaderFontName $FontName `
+  -ApplyContentMarkingHeaderFontSize $HeaderFontSize `
+  -ApplyContentMarkingHeaderAlignment $HeaderAlign | Out-Null
+
+# =========================================================
+# 3) Default settings for Sites & Groups (container labels)
+# =========================================================
+
+# Public:
+Set-Label -Identity $LblPublic `
+  -ContentType File,Email,Site,UnifiedGroup `
+  -SiteAndGroupProtectionEnabled $true `
+  -SiteAndGroupProtectionPrivacy Public `
+  -SiteAndGroupProtectionAllowAccessToGuestUsers $true `
+  -SiteExternalSharingControlType ExternalUserAndGuestSharing | Out-Null
+
+# General:
+Set-Label -Identity $LblGeneral `
+  -ContentType File,Email,Site,UnifiedGroup `
+  -SiteAndGroupProtectionEnabled $true `
+  -SiteAndGroupProtectionPrivacy Unspecified `
+  -SiteAndGroupProtectionAllowAccessToGuestUsers $true `
+  -SiteExternalSharingControlType ExternalUserSharingOnly | Out-Null
+
+# Confidential – External:
+Set-Label -Identity $LblCExternal `
+  -ContentType File,Email,Site,UnifiedGroup `
+  -SiteAndGroupProtectionEnabled $true `
+  -SiteAndGroupProtectionPrivacy Private `
+  -SiteAndGroupProtectionAllowAccessToGuestUsers $true `
+  -SiteExternalSharingControlType ExternalUserSharingOnly | Out-Null
+
+# Confidential – Internal:
+Set-Label -Identity $LblCInternal `
+  -ContentType File,Email,Site,UnifiedGroup `
+  -SiteAndGroupProtectionEnabled $true `
+  -SiteAndGroupProtectionPrivacy Private `
+  -SiteAndGroupProtectionAllowAccessToGuestUsers $false `
+  -SiteExternalSharingControlType Disabled | Out-Null
+
+# Confidential – View Only:
+# Do NOT configure Sites & Groups settings for this label (leave it untouched).
+
+Write-Host "Done. Labels created/updated and configured."
+Disconnect-ExchangeOnline -Confirm:$false
+Write-Host "Disconnected from IPPSSession."
