@@ -1,0 +1,41 @@
+# TLP Sensitivity Labels (Microsoft Purview)
+
+This PowerShell script creates or updates **TLP 2.0–aligned** sensitivity labels in Microsoft Purview and applies baseline **encryption, header markings, and Sites & Groups defaults**.  
+It is **idempotent** (safe to re-run) and supports **Retail (Commercial/GCC)** and **US Gov (GCC High / DoD)** environments.
+
+TLP reference: https://www.cisa.gov/tlp
+
+---
+
+## What it creates
+
+Labels (with priority order):
+
+- `Pub` — TLP:CLEAR  
+- `Gen` — TLP:GREEN  
+- `Confidential – Ext` — TLP:AMBER  
+- `Confidential – Int` — TLP:AMBER+STRICT  
+- `Confidential – View Only` — TLP:RED  
+
+### Protections
+- **Confidential – Ext**: Encrypted, broad rights for `AuthenticatedUsers`, header marking.
+- **Confidential – Int**: Encrypted, rights scoped to tenant primary domain, header marking.
+- **Confidential – View Only**: Encrypted, `VIEW` only, header marking.
+
+### Containers (Sites & Groups)
+- `Pub`: Public, guests allowed, external + guest sharing.
+- `Gen`: Guests allowed, external users only.
+- `Confidential – Ext`: Private, guests allowed, external users only.
+- `Confidential – Int`: Private, no guests, sharing disabled.
+- `Confidential – View Only`: No container settings applied.
+
+---
+
+## Requirements
+
+- PowerShell (run **as Administrator**)
+- `ExchangeOnlineManagement` module
+- Purview / Compliance admin permissions
+
+```powershell
+Install-Module ExchangeOnlineManagement
