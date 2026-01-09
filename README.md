@@ -11,10 +11,10 @@ TLP reference: https://www.cisa.gov/tlp
 
 Labels (with priority order):
 
-- `Pub` — TLP:CLEAR  
-- `Gen` — TLP:GREEN  
-- `Confidential – Ext` — TLP:AMBER  
-- `Confidential – Int` — TLP:AMBER+STRICT  
+- `Public` — TLP:CLEAR  
+- `General` — TLP:GREEN  
+- `Confidential – External` — TLP:AMBER  
+- `Confidential – Internal` — TLP:AMBER+STRICT  
 - `Confidential – View Only` — TLP:RED  
 
 ### Protections
@@ -23,10 +23,10 @@ Labels (with priority order):
 - **Confidential – View Only**: Encrypted, `VIEW` only, header marking.
 
 ### Containers (Sites & Groups)
-- `Pub`: Public, guests allowed, external + guest sharing.
-- `Gen`: Guests allowed, external users only.
-- `Confidential – Ext`: Private, guests allowed, external users only.
-- `Confidential – Int`: Private, no guests, sharing disabled.
+- `Public`: Public, guests allowed, external + guest sharing.
+- `General`: Guests allowed, external users only.
+- `Confidential – External`: Private, guests allowed, external users only.
+- `Confidential – Internal`: Private, no guests, sharing disabled.
 - `Confidential – View Only`: No container settings applied.
 
 ---
