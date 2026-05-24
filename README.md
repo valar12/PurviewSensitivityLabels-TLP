@@ -56,6 +56,9 @@ Labels (with priority order):
 - Run `PSScriptAnalyzer` on the script/module.
 - Add Pester tests with mocked `Get-Label` / `Set-Label` / `New-Label` to validate logic paths offline.
 
+### Usage examples and testing
+- See `USAGE.md` for end-to-end examples (Retail/GCC High/DoD/custom config), dry-run/CI drift-gating patterns, and testing guidance.
+
 ### Containers (Sites & Groups)
 - `Public`: Public, guests allowed, external + guest sharing.
 - `General`: Guests allowed, external users only.
