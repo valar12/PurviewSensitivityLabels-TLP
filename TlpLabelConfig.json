@@ -1,0 +1,64 @@
+{
+  "ConfigVersion": "2026.05.24.1",
+  "Owner": "Purview Compliance Team",
+  "LastReviewed": "2026-05-24",
+  "ChangeTicket": "CHG-0001",
+  "Defaults": {
+    "FontName": "Calibri",
+    "HeaderFontSize": 12,
+    "HeaderAlign": "Right",
+    "OfflineDays": 30,
+    "RightsDefinition": "VIEW,VIEWRIGHTSDATA,DOCEDIT,EDIT,PRINT,EXTRACT,REPLY,REPLYALL,FORWARD,EDITRIGHTSDATA,EXPORT,OBJMODEL,OWNER"
+  },
+  "Labels": [
+    {
+      "Name": "Public",
+      "Priority": 0,
+      "Tooltip": "TLP:CLEAR — can be shared publicly; no limit on disclosure.",
+      "Comment": "TLP:CLEAR (Public)",
+      "ColorHex": null,
+      "Container": { "Enabled": true, "Privacy": "Public", "AllowGuestUsers": true, "ExternalSharing": "ExternalUserAndGuestSharing" }
+    },
+    {
+      "Name": "General",
+      "Priority": 1,
+      "Tooltip": "TLP:GREEN — share within community (partners/customers), not publicly accessible channels.",
+      "Comment": "TLP:GREEN (General)",
+      "ColorHex": "#13A10E",
+      "Container": { "Enabled": true, "Privacy": "Unspecified", "AllowGuestUsers": true, "ExternalSharing": "ExternalUserSharingOnly" }
+    },
+    {
+      "Name": "Confidential – External",
+      "Priority": 2,
+      "Tooltip": "TLP:AMBER — sensitive; intended for specific people inside/outside the org (need-to-know).",
+      "Comment": "TLP:AMBER (Confidential – External)",
+      "ColorHex": "#EAA300",
+      "Encryption": { "Enabled": true, "PrincipalType": "AuthenticatedUsers" },
+      "Markings": { "HeaderEnabled": true, "HeaderText": "Confidential - External" },
+      "Container": { "Enabled": true, "Privacy": "Private", "AllowGuestUsers": true, "ExternalSharing": "ExternalUserSharingOnly" },
+      "Validation": { "EncryptionEnabled": "True", "ApplyContentMarkingHeaderText": "Confidential - External" }
+    },
+    {
+      "Name": "Confidential – Internal",
+      "Priority": 3,
+      "Tooltip": "TLP:AMBER+STRICT — limited to the recipient organization only.",
+      "Comment": "TLP:AMBER+STRICT (Confidential – Internal)",
+      "ColorHex": "#F7630C",
+      "Encryption": { "Enabled": true, "PrincipalType": "TenantDomain" },
+      "Markings": { "HeaderEnabled": true, "HeaderText": "Confidential - Internal" },
+      "Container": { "Enabled": true, "Privacy": "Private", "AllowGuestUsers": false, "ExternalSharing": "Disabled" },
+      "Validation": { "EncryptionEnabled": "True", "ApplyContentMarkingHeaderText": "Confidential - Internal" }
+    },
+    {
+      "Name": "Confidential – View Only",
+      "Priority": 4,
+      "Tooltip": "TLP:RED — do not share further; recipients should not copy/print/forward.",
+      "Comment": "TLP:RED (Confidential – View Only)",
+      "ColorHex": "#A4262C",
+      "Encryption": { "Enabled": true, "PrincipalType": "Literal", "RightsDefinitions": "AuthenticatedUsers:VIEW" },
+      "Markings": { "HeaderEnabled": true, "HeaderText": "Confidential - View Only" },
+      "Container": { "Enabled": false },
+      "Validation": { "EncryptionEnabled": "True", "EncryptionRightsDefinitions": "AuthenticatedUsers:VIEW" }
+    }
+  ]
+}
